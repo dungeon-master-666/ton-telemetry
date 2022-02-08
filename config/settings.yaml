@@ -1,0 +1,7 @@
+mongodb:
+  host: mongodb
+  port: 27017
+  database: telemetry
+  username: user1
+  password_file: /run/secrets/mongodb_password
+api_keys_file: /run/secrets/api_keys

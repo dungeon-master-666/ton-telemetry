@@ -1,0 +1,71 @@
+import traceback
+from pymongo import MongoClient
+from loguru import logger
+
+from fastapi import FastAPI, Request, Security
+from fastapi.responses import JSONResponse
+from fastapi.params import Query, Body
+from fastapi.exceptions import HTTPException
+from fastapi.security.api_key import APIKeyQuery
+
+from config import settings
+from teleTON.utils import _validate_client, _report_status, _get_data
+
+
+# FastAPI app
+description = """TON Telemetry"""
+
+app = FastAPI(
+    title="TON Telemetry Service",
+    description=description
+)
+
+@app.exception_handler(HTTPException)
+async def httpexception_handler(request, exc):
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+
+@app.exception_handler(Exception)
+async def exception_handler(request, exc):
+    return JSONResponse({"detail": "unknown"}, status_code=503)
+
+api_keys = []
+
+@app.on_event("startup")
+def startup():
+    with open(settings.api_keys_file, 'r') as f:
+        global api_keys
+        api_keys = f.read().splitlines()
+        api_keys = [key for key in api_keys if key]
+
+
+@app.post('/report_status')
+def report_status(request: Request, data: dict=Body(...)):
+    try: 
+        adnl = data.pop('adnlAddr')
+        data['gitHashes']
+    except KeyError:
+        raise HTTPException(status_code=422, detail="adnlAddr and gitHashes are required")
+
+    ip = request.client.host
+
+    if _validate_client(adnl, ip):
+        _report_status(adnl, ip, data)
+    else:
+        raise HTTPException(status_code=403)
+
+    return "ok"
+
+api_key_query = APIKeyQuery(name="api_key", description="API key sent as query parameter", auto_error=True)
+
+@app.get('/getTelemetryData', response_class=JSONResponse)
+def get_telemetry_data(
+    request: Request,
+    timestamp_from: float=Query(...), 
+    timestamp_to: float=Query(...),
+    adnl_address: str=Query(None),
+    api_key: str=Security(api_key_query)):
+    if api_key not in api_keys:
+        logger.info(f"Client {request.client.host} tried to get data with unknown api key: {api_key}")
+        raise HTTPException(status_code=401, detail="not authorized")
+
+    return _get_data(timestamp_from, timestamp_to, adnl_address)

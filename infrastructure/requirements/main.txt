@@ -1,0 +1,6 @@
+inject
+fastapi
+loguru
+pymongo
+pyyaml
+uvicorn
