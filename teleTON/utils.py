@@ -83,9 +83,12 @@ def _report_status(adnl: str, ip: str, data: dict, client: MongoClient):
     client[db].telemetry_data.insert_one(record)
 
 @inject.autoparams()
-def _get_data(timestamp_from: float, timestamp_to: float, adnl: Optional[str], client: MongoClient):
+def _get_data(timestamp_from: float, timestamp_to: Optional[float], adnl: Optional[str], client: MongoClient):
     start = datetime.fromtimestamp(timestamp_from)
-    end = datetime.fromtimestamp(timestamp_to)
+    if timestamp_to is not None:
+        end = datetime.fromtimestamp(timestamp_to)
+    else:
+        end = datetime.utcnow()
     request = {'timestamp': {'$gt': start, '$lt': end}}
     if adnl:
         request['data.adnl_address'] = {'$eq': adnl}

@@ -61,7 +61,7 @@ api_key_query = APIKeyQuery(name="api_key", description="API key sent as query p
 def get_telemetry_data(
     request: Request,
     timestamp_from: float=Query(...), 
-    timestamp_to: float=Query(...),
+    timestamp_to: float=Query(None),
     adnl_address: str=Query(None),
     api_key: str=Security(api_key_query)):
     if api_key not in api_keys:
