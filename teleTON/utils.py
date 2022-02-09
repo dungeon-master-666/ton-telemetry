@@ -28,7 +28,7 @@ def inject_config(binder):
                 'timeField': 'timestamp',
                 'metaField': 'data',
             },
-            expireAfterSeconds=86400 * 180
+            expireAfterSeconds=86400 * 90 # 90 days
         )
         logger.info("Collection created")
     except CollectionInvalid:
@@ -39,7 +39,7 @@ def inject_config(binder):
 inject.configure_once(inject_config)
 
 
-ADNL_IP_BOND_TTL = 86400
+ADNL_IP_BOND_TTL = 3600 * 4 # 4 hours
 @inject.autoparams()
 def _validate_client(adnl: str, ip: str, client: MongoClient):
     start = datetime.utcnow() - timedelta(seconds=ADNL_IP_BOND_TTL)
