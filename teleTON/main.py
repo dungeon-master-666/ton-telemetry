@@ -46,7 +46,7 @@ def report_status(request: Request, data: dict=Body(...)):
     except KeyError:
         raise HTTPException(status_code=422, detail="adnlAddr and gitHashes are required")
 
-    ip = request.client.host
+    ip = request.headers['x-real-ip']
 
     if _validate_client(adnl, ip):
         _report_status(adnl, ip, data)
@@ -65,7 +65,7 @@ def get_telemetry_data(
     adnl_address: str=Query(None),
     api_key: str=Security(api_key_query)):
     if api_key not in api_keys:
-        logger.info(f"Client {request.client.host} tried to get data with unknown api key: {api_key}")
+        logger.info(f"Client {request.headers['x-real-ip']} tried to get data with unknown api key: {api_key}")
         raise HTTPException(status_code=401, detail="not authorized")
 
     return _get_data(timestamp_from, timestamp_to, adnl_address)
