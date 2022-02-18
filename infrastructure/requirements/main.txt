@@ -4,3 +4,4 @@ loguru
 pymongo
 pyyaml
 uvicorn
+gunicorn

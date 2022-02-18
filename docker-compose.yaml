@@ -18,8 +18,6 @@ services:
     build: 
       context: .
       dockerfile: infrastructure/main.Dockerfile
-    environment:
-      GETMETHODS: "false"
     secrets:
       - mongodb_password
       - api_keys
@@ -28,7 +26,7 @@ services:
     restart: unless-stopped
     networks:
       - internal
-    command: --host 0.0.0.0 --port 8081
+    command: -w ${TON_TELEMETRY_WEBSERVERS_WORKERS:-1} --bind 0.0.0.0:8081
   nginx:
     build:
       context: .

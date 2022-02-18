@@ -13,4 +13,4 @@ COPY . /usr/src/ton_telemetry
 WORKDIR /usr/src/ton_telemetry
 
 # entrypoint
-ENTRYPOINT [ "uvicorn", "teleTON.main:app" ]
+ENTRYPOINT [ "gunicorn", "teleTON.main:app", "-k", "uvicorn.workers.UvicornWorker" ]
