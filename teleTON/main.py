@@ -1,5 +1,3 @@
-import traceback
-from pymongo import MongoClient
 from loguru import logger
 
 from fastapi import FastAPI, Request, Security
@@ -63,9 +61,10 @@ def get_telemetry_data(
     timestamp_from: float=Query(...), 
     timestamp_to: float=Query(None),
     adnl_address: str=Query(None),
+    ip_address: str=Query(None),
     api_key: str=Security(api_key_query)):
     if api_key not in api_keys:
         logger.info(f"Client {request.headers['x-real-ip']} tried to get data with unknown api key: {api_key}")
         raise HTTPException(status_code=401, detail="not authorized")
 
-    return _get_data(timestamp_from, timestamp_to, adnl_address)
+    return _get_data(timestamp_from, timestamp_to, adnl_address, ip_address)
