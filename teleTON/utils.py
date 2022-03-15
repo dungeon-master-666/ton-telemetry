@@ -1,15 +1,20 @@
 from datetime import datetime, timedelta
 from typing import Optional
+from hashlib import sha256
 
 import inject
-
 from pymongo import MongoClient, DESCENDING
 from pymongo.errors import CollectionInvalid
-
 from loguru import logger
+import geoip2.database
 
 from config import settings
 
+with open(settings.hash_salt_file, 'r') as f:
+    hash_salt = f.read()
+
+country_reader = geoip2.database.Reader(settings.geoip_country_db)
+isp_reader = geoip2.database.Reader(settings.geoip_isp_db)
 
 # inject configure
 def inject_config(binder):
@@ -46,36 +51,49 @@ def _validate_client(adnl: str, ip: str, client: MongoClient):
     db_name = settings.mongodb.database
 
     # Check that last record within last ADNL_IP_BOND_TTL seconds
-    # with `remote_address` == `ip` contains `adnl_address` == `adnl`
-    ip_request = {'timestamp': {'$gt': start}, 'data.remote_address': {'$eq': ip}}
+    # with `remote_ip_hash` == `ip_hash` contains `adnl_address` == `adnl`
+    ip_hash = sha256((ip + hash_salt).encode('utf-8')).hexdigest()
+    ip_request = {'timestamp': {'$gt': start}, 'data.remote_ip_hash': {'$eq': ip_hash}}
     ip_response = client[db_name].telemetry_data.find(ip_request).limit(1).sort('timestamp', DESCENDING)
     ip_response = list(ip_response)
     if len(ip_response):
         saved_adnl = ip_response[0]['data']['adnl_address']
         if saved_adnl != adnl:
-            logger.info(f"{ip} - {adnl} request not allowed. Last submitted adnl for this ip: {saved_adnl}")
+            logger.info(f"{ip_hash} - {adnl} request not allowed. Last submitted adnl for this ip: {saved_adnl}")
             return False
 
     # Check that last record within last ADNL_IP_BOND_TTL seconds
-    # with `adnl_address` == `adnl` contains `remote_address` == `ip`
+    # with `adnl_address` == `adnl` contains `remote_ip_hash` == `ip_hash`
     adnl_request = {'timestamp': {'$gt': start}, 'data.adnl_address': {'$eq': adnl}}
     adnl_response = client[db_name].telemetry_data.find(adnl_request).limit(1).sort('timestamp', DESCENDING)
     adnl_response = list(adnl_response)
     if len(adnl_response):
-        saved_ip = adnl_response[0]['data']['remote_address']
-        if saved_ip != ip:
-            logger.info(f"{ip} - {adnl} request not allowed. Last ip for this adnl: {saved_ip}")
+        saved_ip_hash = adnl_response[0]['data']['remote_ip_hash']
+        if saved_ip_hash != ip_hash:
+            logger.info(f"{ip_hash} - {adnl} request not allowed. Last ip hash for this adnl: {saved_ip_hash}")
             return False
 
     return True
 
 @inject.autoparams()
 def _report_status(adnl: str, ip: str, data: dict, client: MongoClient):
+    ip_hash = sha256((ip + hash_salt).encode('utf-8')).hexdigest()
+    try:
+        remote_country = country_reader.country(ip).country.name
+    except:
+        remote_country = None
+    try:
+        remote_isp = isp_reader.isp(ip).isp
+    except:
+        remote_isp = None
+
     record = {
         'timestamp': datetime.utcnow(),
         'data': {
             'adnl_address': adnl,
-            'remote_address': ip,
+            'remote_ip_hash': ip_hash,
+            'remote_country': remote_country,
+            'remote_isp': remote_isp,
             'data': data
         }
     }
@@ -93,7 +111,8 @@ def _get_data(timestamp_from: float, timestamp_to: Optional[float], adnl: Option
     if adnl:
         request['data.adnl_address'] = {'$eq': adnl}
     if ip:
-        request['data.remote_address'] = {'$eq': ip}
+        ip_hash = sha256((ip + hash_salt).encode('utf-8')).hexdigest()
+        request['data.remote_ip_hash'] = {'$eq': ip_hash}
     db_name = settings.mongodb.database
     response = client[db_name].telemetry_data.find(request, {'_id': False})
     result = []

@@ -3,5 +3,6 @@ fastapi
 loguru
 pymongo
 pyyaml
+geoip2
 uvicorn
 gunicorn

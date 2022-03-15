@@ -21,6 +21,9 @@ services:
     secrets:
       - mongodb_password
       - api_keys
+      - hash_salt
+      - geoip_country_db
+      - geoip_isp_db
     depends_on: 
       - mongodb
     restart: unless-stopped
@@ -47,6 +50,12 @@ secrets:
     file: private/mongodb_password
   api_keys:
     file: private/api_keys
+  hash_salt:
+    file: private/hash_salt
+  geoip_country_db:
+    file: private/GeoIP2-Country.mmdb
+  geoip_isp_db:
+    file: private/GeoIP2-ISP.mmdb
 volumes:
   mongodata:
     external: false
