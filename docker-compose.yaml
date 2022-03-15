@@ -11,7 +11,7 @@ services:
     secrets:
       - mongodb_password
     ports:
-      - 27017:27017
+      - ${TON_TELEMETRY_MONGODB_PORT:-27017}:27017
     networks: 
       - internal
   main:
@@ -24,27 +24,14 @@ services:
       - hash_salt
       - geoip_country_db
       - geoip_isp_db
+    ports:
+      - ${TON_TELEMETRY_HTTP_PORT:-80}:8081
     depends_on: 
       - mongodb
     restart: unless-stopped
     networks:
       - internal
     command: -w ${TON_TELEMETRY_WEBSERVERS_WORKERS:-1} --bind 0.0.0.0:8081
-  nginx:
-    build:
-      context: .
-      dockerfile: infrastructure/nginx.Dockerfile
-    ports:
-      - 80:80
-      - 443:443
-    links:
-      - main
-    volumes:
-      - ./private/ssl-data/:/etc/letsencrypt
-      - nginxdata:/etc/nginx
-    networks:
-      - internal
-    restart: unless-stopped
 secrets:
   mongodb_password:
     file: private/mongodb_password
