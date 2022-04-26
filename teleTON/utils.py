@@ -121,3 +121,14 @@ def _get_data(timestamp_from: float, timestamp_to: Optional[float], adnl: Option
         data['timestamp'] = cur['timestamp'].timestamp()
         result.append(data)
     return result
+
+@inject.autoparams()
+def _is_address_known(adnl_address: str, timestamp_from: float, client: MongoClient):
+    timestamp = datetime.fromtimestamp(timestamp_from)
+    request = {
+        'timestamp': {'$gt': timestamp}, 
+        'data.adnl_address': {'$eq': adnl_address}
+    }
+    db_name = settings.mongodb.database
+    return client[db_name].telemetry_data.count_documents(request, limit=1) > 0
+

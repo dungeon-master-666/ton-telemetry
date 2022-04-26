@@ -7,7 +7,7 @@ from fastapi.exceptions import HTTPException
 from fastapi.security.api_key import APIKeyQuery
 
 from config import settings
-from teleTON.utils import _validate_client, _report_status, _get_data
+from teleTON.utils import _validate_client, _report_status, _get_data, _is_address_known
 
 
 # FastAPI app
@@ -68,3 +68,12 @@ def get_telemetry_data(
         raise HTTPException(status_code=401, detail="not authorized")
 
     return _get_data(timestamp_from, timestamp_to, adnl_address, ip_address)
+
+@app.get('/checkAddressKnown', response_class=JSONResponse)
+def check_address_known(
+    adnl_address: str,
+    timestamp_from: float):
+
+    return {
+        'address_known': _is_address_known(adnl_address, timestamp_from)
+    }
