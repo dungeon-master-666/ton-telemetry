@@ -20,3 +20,12 @@ The service supports the following environment variables for configuration.
 - `TON_TELEMETRY_WEBSERVERS_WORKERS` *(default: 1)*
 
 Number of webserver processes.
+
+
+## Backup tasks
+
+Daily backup:
+
+- Create backup directory: `sudo mkdir /var/ton-backups`.
+- Copy backup script to bin: `sudo cp ./backup.sh /usr/bin/ton-telemetry-backup`.
+- Run `sudo crontab -e` and add the line `0 0 * * * ton-telemetry-backup >> /var/log/ton-telemetry-backup.log 2>&1`.
