@@ -53,6 +53,15 @@ def report_status(request: Request, data: dict=Body(...)):
 
     return "ok"
 
+@app.post('/report_overlays')
+def report_overlays(request: Request, data: dict=Body(...)):
+    try:
+        adnl = data.pop('adnl_address')
+    except KeyError:
+        raise HTTPException(status_code=422, detail="adnl_address is required")
+
+    return "ok"
+
 api_key_query = APIKeyQuery(name="api_key", description="API key sent as query parameter", auto_error=True)
 
 @app.get('/getTelemetryData', response_class=JSONResponse)
