@@ -44,6 +44,9 @@ def report_status(request: Request, data: dict=Body(...)):
     except KeyError:
         raise HTTPException(status_code=422, detail="adnlAddr and gitHashes are required")
 
+    if adnl is None:
+        raise HTTPException(status_code=422, detail="adnlAddr cannot be null")
+
     ip = request.headers['x-real-ip']
 
     if _validate_client(adnl, ip):
@@ -56,9 +59,12 @@ def report_status(request: Request, data: dict=Body(...)):
 @app.post('/report_overlays')
 def report_overlays(request: Request, data: dict=Body(...)):
     try:
-        adnl = data.pop('adnl_address')
+        adnl = data.pop('adnlAddr')
     except KeyError:
-        raise HTTPException(status_code=422, detail="adnl_address is required")
+        raise HTTPException(status_code=422, detail="adnlAddr is required")
+
+    if adnl is None:
+        raise HTTPException(status_code=422, detail="adnlAddr cannot be null")
 
     return "ok"
 
