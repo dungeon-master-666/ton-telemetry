@@ -36,7 +36,7 @@ secrets:
   mongodb_password:
     file: private/mongodb_password
   api_keys:
-    file: private/api_keys
+    file: private/api_keys.json
   hash_salt:
     file: private/hash_salt
   geoip_country_db:

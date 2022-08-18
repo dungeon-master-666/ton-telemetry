@@ -35,6 +35,7 @@ def inject_config(binder):
             },
             expireAfterSeconds=86400 * 90 # 90 days
         )
+        client[db_name].telemetry_data.create_index([('data.adnl_address', 1), ('timestamp', 1)])
         logger.info("Collection created")
     except CollectionInvalid:
         logger.info("Collection already exists")
@@ -79,7 +80,7 @@ def _validate_client(adnl: str, ip: str, client: MongoClient):
 def _report_status(adnl: str, ip: str, data: dict, client: MongoClient):
     ip_hash = sha256((ip + hash_salt).encode('utf-8')).hexdigest()
     try:
-        remote_country = country_reader.country(ip).country.name
+        remote_country = country_reader.country(ip).country.iso_code
     except:
         remote_country = None
     try:
@@ -126,9 +127,10 @@ COUNTRY_CHECK_TTL = 86400 # 1 day
 @inject.autoparams()
 def _get_validator_country(adnl: str, client: MongoClient):
     start = datetime.utcnow() - timedelta(COUNTRY_CHECK_TTL)
-    request = {'timestamp': {'$gt': start}, 'data.adnl_address': {'eq': adnl}}
+    request = {'timestamp': {'$gt': start}, 'data.adnl_address': {'$eq': adnl}}
     db_name = settings.mongodb.database
     response = client[db_name].telemetry_data.find(request).limit(1).sort('timestamp', DESCENDING)
+    response = list(response)
     if len(response):
         country = response[0]['data']['remote_country']
         return country

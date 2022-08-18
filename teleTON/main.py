@@ -1,3 +1,4 @@
+import json
 from loguru import logger
 
 from fastapi import FastAPI, Request, Security, Depends
@@ -73,18 +74,11 @@ def check_permissions(request: Request, api_key: str=Security(api_key_query)):
     if api_key not in api_keys:
         logger.info(f"Client {request.headers['x-real-ip']} tried to get data with unknown api key: {api_key}")
         raise HTTPException(status_code=401, detail="not authorized")
-    if request.method not in api_keys[api_key]['methods']:
-        logger.info(f"Client {request.headers['x-real-ip']} with api key {api_key} tried to get request {request.method} without permission")
+    endpoint = request.url.path[1:] # skip / in the beginning
+    if endpoint not in api_keys[api_key]['methods']:
+        logger.info(f"Client {request.headers['x-real-ip']} with api key {api_key} tried to get request {endpoint} without permission")
         raise HTTPException(status_code=403, detail="not authorized")
     return api_key
-
-@app.get('/getValidatorCountry', response_class=JSONResponse)
-def get_validator_country(
-    request: Request,
-    adnl_address: str,
-    api_key: str=Depends(check_permissions)):
-    return _get_validator_country(adnl_address)
-    
 
 @app.get('/getTelemetryData', response_class=JSONResponse)
 def get_telemetry_data(
@@ -95,6 +89,15 @@ def get_telemetry_data(
     ip_address: str=Query(None),
     api_key: str=Depends(check_permissions)):
     return _get_data(timestamp_from, timestamp_to, adnl_address, ip_address)
+
+@app.get('/getValidatorCountry', response_class=JSONResponse)
+def get_validator_country(
+    request: Request,
+    adnl_address: str,
+    api_key: str=Depends(check_permissions)):
+    return {
+        'country': _get_validator_country(adnl_address)
+    }
 
 @app.get('/checkAddressKnown', response_class=JSONResponse)
 def check_address_known(
