@@ -1,0 +1,13 @@
+{
+	"secret_key": {
+		"methods": [
+			"getTelemetryData",
+			"getValidatorCountry"
+		]
+	},
+	"some_other_key": {
+		"methods": [
+			"getValidatorCountry"
+		]
+	}
+}

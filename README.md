@@ -3,8 +3,9 @@
 
   - First time: run `./setup.sh` to install required building tools: `docker`, `docker-compose`, `curl`.
   - Set needed environment variables (see [Configuration](#Configuration))
-  - Set API keys for accessing info to `private/api_keys` file.
+  - Set API keys for accessing info to `private/api_keys` file with format as in `api_keys_example.json`.
   - Set MongoDB password to `private/mongodb_password` file.
+  - Set hash salt to `private/hash_salt` file.
   - Build services: `docker-compose build`.
   - Run services: `docker-compose up -d`.
   - (Optional) Generate SSL certificates: 

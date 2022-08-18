@@ -1,13 +1,13 @@
 from loguru import logger
 
-from fastapi import FastAPI, Request, Security
+from fastapi import FastAPI, Request, Security, Depends
 from fastapi.responses import JSONResponse
 from fastapi.params import Query, Body
 from fastapi.exceptions import HTTPException
 from fastapi.security.api_key import APIKeyQuery
 
 from config import settings
-from teleTON.utils import _validate_client, _report_status, _get_data, _is_address_known
+from teleTON.utils import _validate_client, _report_status, _get_data, _get_validator_country, _is_address_known
 
 
 # FastAPI app
@@ -32,8 +32,7 @@ api_keys = []
 def startup():
     with open(settings.api_keys_file, 'r') as f:
         global api_keys
-        api_keys = f.read().splitlines()
-        api_keys = [key for key in api_keys if key]
+        api_keys = json.load(f)
 
 
 @app.post('/report_status')
@@ -70,6 +69,23 @@ def report_overlays(request: Request, data: dict=Body(...)):
 
 api_key_query = APIKeyQuery(name="api_key", description="API key sent as query parameter", auto_error=True)
 
+def check_permissions(request: Request, api_key: str=Security(api_key_query)):
+    if api_key not in api_keys:
+        logger.info(f"Client {request.headers['x-real-ip']} tried to get data with unknown api key: {api_key}")
+        raise HTTPException(status_code=401, detail="not authorized")
+    if request.method not in api_keys[api_key]['methods']:
+        logger.info(f"Client {request.headers['x-real-ip']} with api key {api_key} tried to get request {request.method} without permission")
+        raise HTTPException(status_code=403, detail="not authorized")
+    return api_key
+
+@app.get('/getValidatorCountry', response_class=JSONResponse)
+def get_validator_country(
+    request: Request,
+    adnl_address: str,
+    api_key: str=Depends(check_permissions)):
+    return _get_validator_country(adnl_address)
+    
+
 @app.get('/getTelemetryData', response_class=JSONResponse)
 def get_telemetry_data(
     request: Request,
@@ -77,11 +93,7 @@ def get_telemetry_data(
     timestamp_to: float=Query(None),
     adnl_address: str=Query(None),
     ip_address: str=Query(None),
-    api_key: str=Security(api_key_query)):
-    if api_key not in api_keys:
-        logger.info(f"Client {request.headers['x-real-ip']} tried to get data with unknown api key: {api_key}")
-        raise HTTPException(status_code=401, detail="not authorized")
-
+    api_key: str=Depends(check_permissions)):
     return _get_data(timestamp_from, timestamp_to, adnl_address, ip_address)
 
 @app.get('/checkAddressKnown', response_class=JSONResponse)
