@@ -126,7 +126,7 @@ def _get_data(timestamp_from: float, timestamp_to: Optional[float], adnl: Option
 COUNTRY_CHECK_TTL = 86400 # 1 day
 @inject.autoparams()
 def _get_validator_country(adnl: str, client: MongoClient):
-    start = datetime.utcnow() - timedelta(COUNTRY_CHECK_TTL)
+    start = datetime.utcnow() - timedelta(seconds=COUNTRY_CHECK_TTL)
     request = {'timestamp': {'$gt': start}, 'data.adnl_address': {'$eq': adnl}}
     db_name = settings.mongodb.database
     response = client[db_name].telemetry_data.find(request).limit(1).sort('timestamp', DESCENDING)
