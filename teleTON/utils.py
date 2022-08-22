@@ -118,12 +118,19 @@ def _report_overlays(adnl: str, ip: str, overlays_stats: dict, client: MongoClie
 
     # Since shard_id does not fit in int64 (which is maximum for MongoDB)
     # we traverse the dict and convert it to string
-    def fix_uint64(dictionary):
-        for key, value in dictionary.items():
-            if type(value) is int and value > 2**63-1:
-                dictionary[key] = str(value)
-            else:
-                fix_uint64(value)
+    def fix_uint64(dict_or_list):
+        if type(dict_or_list) is list:
+            for i, value in enumerate(dict_or_list):
+                if type(value) is int and (value > 2**63-1 or value < -2**63):
+                    dict_or_list[i] = str(value)
+                else:
+                    fix_uint64(value)
+        elif type(dict_or_list) is dict:
+            for key, value in dict_or_list.items():
+                if type(value) is int and (value > 2**63-1 or value < -2**63):
+                    dict_or_list[key] = str(value)
+                else:
+                    fix_uint64(value)
 
     fix_uint64(overlays_stats)
 
@@ -164,7 +171,7 @@ def _get_telemetry_data(timestamp_from: float, timestamp_to: Optional[float], ad
 def _get_overlays_data(adnl: str, client: MongoClient):
     request = {'data.adnl_address': {'$eq': adnl}}
     db_name = settings.mongodb.database
-    response = client[db_name].telemetry_data.find(request, {'_id': False}).limit(1).sort('timestamp', DESCENDING)
+    response = client[db_name].overlays_data.find_one(request, {'_id': False}, sort=[('timestamp', DESCENDING)])
     if response is None:
         raise AdnlNotFound()
     return response['data']
@@ -175,7 +182,7 @@ def _get_validator_country(adnl: str, client: MongoClient):
     start = datetime.utcnow() - timedelta(seconds=COUNTRY_CHECK_TTL)
     request = {'timestamp': {'$gt': start}, 'data.adnl_address': {'$eq': adnl}}
     db_name = settings.mongodb.database
-    response = client[db_name].telemetry_data.find_one(request).limit(1).sort('timestamp', DESCENDING)
+    response = client[db_name].telemetry_data.find_one(request, sort=[('timestamp', DESCENDING)])
     if response is None:
         raise AdnlNotFound()
     country = response[0]['data']['remote_country']
