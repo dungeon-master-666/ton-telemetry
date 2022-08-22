@@ -185,8 +185,7 @@ def _get_validator_country(adnl: str, client: MongoClient):
     response = client[db_name].telemetry_data.find_one(request, sort=[('timestamp', DESCENDING)])
     if response is None:
         raise AdnlNotFound()
-    country = response[0]['data']['remote_country']
-    return country
+    return response['data']['remote_country']
 
 @inject.autoparams()
 def _is_address_known(adnl_address: str, timestamp_from: float, client: MongoClient):
