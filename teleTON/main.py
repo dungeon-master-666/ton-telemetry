@@ -8,7 +8,7 @@ from fastapi.exceptions import HTTPException
 from fastapi.security.api_key import APIKeyQuery
 
 from config import settings
-from teleTON.utils import _validate_client, _report_status, _get_data, _get_validator_country, _is_address_known
+from teleTON.utils import _validate_client, _report_status, _report_overlays, _get_telemetry_data, _get_overlays_data, _get_validator_country, _is_address_known, AdnlNotFound
 
 
 # FastAPI app
@@ -60,11 +60,18 @@ def report_status(request: Request, data: dict=Body(...)):
 def report_overlays(request: Request, data: dict=Body(...)):
     try:
         adnl = data.pop('adnlAddr')
+        overlays_stats = data['overlaysStats']
     except KeyError:
-        raise HTTPException(status_code=422, detail="adnlAddr is required")
+        raise HTTPException(status_code=422, detail="adnlAddr and overlaysStats are required")
 
     if adnl is None:
         raise HTTPException(status_code=422, detail="adnlAddr cannot be null")
+
+    ip = request.headers['x-real-ip']
+    if _validate_client(adnl, ip):
+        _report_overlays(adnl, ip, overlays_stats)
+    else:
+        raise HTTPException(status_code=403)
 
     return "ok"
 
@@ -88,16 +95,33 @@ def get_telemetry_data(
     adnl_address: str=Query(None),
     ip_address: str=Query(None),
     api_key: str=Depends(check_permissions)):
-    return _get_data(timestamp_from, timestamp_to, adnl_address, ip_address)
+    return _get_telemetry_data(timestamp_from, timestamp_to, adnl_address, ip_address)
 
 @app.get('/getValidatorCountry', response_class=JSONResponse)
 def get_validator_country(
     request: Request,
     adnl_address: str,
     api_key: str=Depends(check_permissions)):
+    try:
+        country = _get_validator_country(adnl_address)
+    except AdnlNotFound:
+        raise HTTPException(status_code=404, detail="No validator with provided adnl sent telemetry data")
+
     return {
-        'country': _get_validator_country(adnl_address)
+        'country': country
     }
+
+@app.get('/getOverlaysData', response_class=JSONResponse)
+def get_overlays_data(
+    request: Request,
+    adnl_address: str,
+    api_key: str=Depends(check_permissions)):
+    try:
+        overlays_data = _get_overlays_data(adnl_address)
+    except AdnlNotFound:
+        raise HTTPException(status_code=404, detail="No validator with provided adnl sent overlays data")
+
+    return overlays_data
 
 @app.get('/checkAddressKnown', response_class=JSONResponse)
 def check_address_known(

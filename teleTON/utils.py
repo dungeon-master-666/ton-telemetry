@@ -10,6 +10,9 @@ import geoip2.database
 
 from config import settings
 
+class AdnlNotFound(Exception):
+    pass
+
 with open(settings.hash_salt_file, 'r') as f:
     hash_salt = f.read()
 
@@ -36,7 +39,15 @@ def inject_config(binder):
             expireAfterSeconds=86400 * 90 # 90 days
         )
         client[db_name].telemetry_data.create_index([('data.adnl_address', 1), ('timestamp', 1)])
-        logger.info("Collection created")
+        client[db_name].create_collection(
+            'overlays_data', 
+            timeseries={ 
+                'timeField': 'timestamp',
+                'metaField': 'data',
+            },
+            expireAfterSeconds=86400 * 90 # 90 days
+        )
+        logger.info("Collections created")
     except CollectionInvalid:
         logger.info("Collection already exists")
 
@@ -102,7 +113,22 @@ def _report_status(adnl: str, ip: str, data: dict, client: MongoClient):
     client[db].telemetry_data.insert_one(record)
 
 @inject.autoparams()
-def _get_data(timestamp_from: float, timestamp_to: Optional[float], adnl: Optional[str], ip: Optional[str], client: MongoClient):
+def _report_overlays(adnl: str, ip: str, overlays_stats: dict, client: MongoClient):
+    ip_hash = sha256((ip + hash_salt).encode('utf-8')).hexdigest()
+
+    record = {
+        'timestamp': datetime.utcnow(),
+        'data': {
+            'adnl_address': adnl,
+            'remote_ip_hash': ip_hash,
+            'data': overlays_stats
+        }
+    }
+    db = settings.mongodb.database
+    client[db].overlays_data.insert_one(record)
+
+@inject.autoparams()
+def _get_telemetry_data(timestamp_from: float, timestamp_to: Optional[float], adnl: Optional[str], ip: Optional[str], client: MongoClient):
     start = datetime.fromtimestamp(timestamp_from)
     if timestamp_to is not None:
         end = datetime.fromtimestamp(timestamp_to)
@@ -123,17 +149,26 @@ def _get_data(timestamp_from: float, timestamp_to: Optional[float], adnl: Option
         result.append(data)
     return result
 
+@inject.autoparams()
+def _get_overlays_data(adnl: str, client: MongoClient):
+    request = {'data.adnl_address': {'$eq': adnl}}
+    db_name = settings.mongodb.database
+    response = client[db_name].telemetry_data.find(request, {'_id': False}).limit(1).sort('timestamp', DESCENDING)
+    if response is None:
+        raise AdnlNotFound()
+    return response['data']
+
 COUNTRY_CHECK_TTL = 86400 # 1 day
 @inject.autoparams()
 def _get_validator_country(adnl: str, client: MongoClient):
     start = datetime.utcnow() - timedelta(seconds=COUNTRY_CHECK_TTL)
     request = {'timestamp': {'$gt': start}, 'data.adnl_address': {'$eq': adnl}}
     db_name = settings.mongodb.database
-    response = client[db_name].telemetry_data.find(request).limit(1).sort('timestamp', DESCENDING)
-    response = list(response)
-    if len(response):
-        country = response[0]['data']['remote_country']
-        return country
+    response = client[db_name].telemetry_data.find_one(request).limit(1).sort('timestamp', DESCENDING)
+    if response is None:
+        raise AdnlNotFound()
+    country = response[0]['data']['remote_country']
+    return country
 
 @inject.autoparams()
 def _is_address_known(adnl_address: str, timestamp_from: float, client: MongoClient):
