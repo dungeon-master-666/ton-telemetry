@@ -116,6 +116,17 @@ def _report_status(adnl: str, ip: str, data: dict, client: MongoClient):
 def _report_overlays(adnl: str, ip: str, overlays_stats: dict, client: MongoClient):
     ip_hash = sha256((ip + hash_salt).encode('utf-8')).hexdigest()
 
+    # Since shard_id does not fit in int64 (which is maximum for MongoDB)
+    # we traverse the dict and convert it to string
+    def fix_uint64(dictionary):
+        for key, value in dictionary.items():
+            if type(value) is int and value > 2**63-1:
+                dictionary[key] = str(value)
+            else:
+                fix_uint64(value)
+
+    fix_uint64(overlays_stats)
+
     record = {
         'timestamp': datetime.utcnow(),
         'data': {
