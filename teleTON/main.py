@@ -97,6 +97,15 @@ def get_telemetry_data(
     api_key: str=Depends(check_permissions)):
     return _get_telemetry_data(timestamp_from, timestamp_to, adnl_address, ip_address)
 
+@app.get('/getOverlaysData', response_class=JSONResponse)
+def get_overlays_data(
+    request: Request,
+    timestamp_from: float=Query(...), 
+    timestamp_to: float=Query(None),
+    adnl_address: str=Query(None),
+    api_key: str=Depends(check_permissions)):
+    return _get_overlays_data(timestamp_from, timestamp_to, adnl_address)
+
 @app.get('/getValidatorCountry', response_class=JSONResponse)
 def get_validator_country(
     request: Request,
@@ -110,18 +119,6 @@ def get_validator_country(
     return {
         'country': country
     }
-
-@app.get('/getOverlaysData', response_class=JSONResponse)
-def get_overlays_data(
-    request: Request,
-    adnl_address: str,
-    api_key: str=Depends(check_permissions)):
-    try:
-        overlays_data = _get_overlays_data(adnl_address)
-    except AdnlNotFound:
-        raise HTTPException(status_code=404, detail="No validator with provided adnl sent overlays data")
-
-    return overlays_data
 
 @app.get('/checkAddressKnown', response_class=JSONResponse)
 def check_address_known(

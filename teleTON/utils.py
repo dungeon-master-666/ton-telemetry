@@ -168,13 +168,23 @@ def _get_telemetry_data(timestamp_from: float, timestamp_to: Optional[float], ad
     return result
 
 @inject.autoparams()
-def _get_overlays_data(adnl: str, client: MongoClient):
-    request = {'data.adnl_address': {'$eq': adnl}}
+def _get_overlays_data(timestamp_from: float, timestamp_to: Optional[float], adnl: Optional[str], client: MongoClient):
+    start = datetime.fromtimestamp(timestamp_from)
+    if timestamp_to is not None:
+        end = datetime.fromtimestamp(timestamp_to)
+    else:
+        end = datetime.utcnow()
+    request = {'timestamp': {'$gt': start, '$lt': end}}
+    if adnl:
+        request['data.adnl_address'] = {'$eq': adnl}
     db_name = settings.mongodb.database
-    response = client[db_name].overlays_data.find_one(request, {'_id': False}, sort=[('timestamp', DESCENDING)])
-    if response is None:
-        raise AdnlNotFound()
-    return response['data']
+    response = client[db_name].overlays_data.find(request, {'_id': False}).sort('timestamp', DESCENDING)
+    result = []
+    for cur in response:
+        data = cur['data']
+        data['timestamp'] = cur['timestamp'].timestamp()
+        result.append(data)
+    return result
 
 COUNTRY_CHECK_TTL = 86400 # 1 day
 @inject.autoparams()
