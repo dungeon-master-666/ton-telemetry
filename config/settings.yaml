@@ -6,5 +6,5 @@ mongodb:
   password_file: /run/secrets/mongodb_password
 api_keys_file: /run/secrets/api_keys
 hash_salt_file: /run/secrets/hash_salt
-geoip_country_db: /run/secrets/geoip_country_db
+geoip_city_db: /run/secrets/geoip_city_db
 geoip_isp_db: /run/secrets/geoip_isp_db

@@ -22,7 +22,7 @@ services:
       - mongodb_password
       - api_keys
       - hash_salt
-      - geoip_country_db
+      - geoip_city_db
       - geoip_isp_db
     ports:
       - ${TON_TELEMETRY_HTTP_PORT:-80}:8081
@@ -39,8 +39,8 @@ secrets:
     file: private/api_keys.json
   hash_salt:
     file: private/hash_salt
-  geoip_country_db:
-    file: private/GeoIP2-Country.mmdb
+  geoip_city_db:
+    file: private/GeoIP2-City.mmdb
   geoip_isp_db:
     file: private/GeoIP2-ISP.mmdb
 volumes:

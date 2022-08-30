@@ -16,7 +16,7 @@ class AdnlNotFound(Exception):
 with open(settings.hash_salt_file, 'r') as f:
     hash_salt = f.read()
 
-country_reader = geoip2.database.Reader(settings.geoip_country_db)
+city_reader = geoip2.database.Reader(settings.geoip_city_db)
 isp_reader = geoip2.database.Reader(settings.geoip_isp_db)
 
 # inject configure
@@ -91,7 +91,7 @@ def _validate_client(adnl: str, ip: str, client: MongoClient):
 def _report_status(adnl: str, ip: str, data: dict, client: MongoClient):
     ip_hash = sha256((ip + hash_salt).encode('utf-8')).hexdigest()
     try:
-        remote_country = country_reader.country(ip).country.iso_code
+        remote_country = city_reader.city(ip).country.iso_code
     except:
         remote_country = None
     try:
