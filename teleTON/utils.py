@@ -91,9 +91,14 @@ def _validate_client(adnl: str, ip: str, client: MongoClient):
 def _report_status(adnl: str, ip: str, data: dict, client: MongoClient):
     ip_hash = sha256((ip + hash_salt).encode('utf-8')).hexdigest()
     try:
-        remote_country = city_reader.city(ip).country.iso_code
+        response = city_reader.city(ip)
+        remote_country = response.country.iso_code
+        remote_lat = response.location.latitude
+        remote_long = response.location.longitude
     except:
         remote_country = None
+        remote_lat = None
+        remote_long = None
     try:
         remote_isp = isp_reader.isp(ip).isp
     except:
@@ -106,6 +111,8 @@ def _report_status(adnl: str, ip: str, data: dict, client: MongoClient):
             'remote_ip_hash': ip_hash,
             'remote_country': remote_country,
             'remote_isp': remote_isp,
+            'remote_latitude': remote_lat,
+            'remote_longitude': remote_long,
             'data': data
         }
     }
