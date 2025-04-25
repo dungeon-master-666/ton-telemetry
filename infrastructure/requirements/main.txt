@@ -1,5 +1,7 @@
 inject
 fastapi
+fastapi_utils[all]
+httpx
 loguru
 pymongo
 pyyaml

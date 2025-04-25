@@ -1,11 +1,16 @@
 import json
 from loguru import logger
 
+import httpx
+from datetime import datetime
+
 from fastapi import FastAPI, Request, Security, Depends
 from fastapi.responses import JSONResponse
 from fastapi.params import Query, Body
 from fastapi.exceptions import HTTPException
 from fastapi.security.api_key import APIKeyQuery
+
+from fastapi_utils.tasks import repeat_every
 
 from config import settings
 from teleTON.utils import _validate_client, _report_status, _report_overlays, _get_telemetry_data, _get_overlays_data, _get_validator_country, _is_address_known, AdnlNotFound
@@ -35,6 +40,28 @@ def startup():
         global api_keys
         api_keys = json.load(f)
 
+current_validators_map = {}
+
+@app.on_event("startup")
+@repeat_every(seconds=5 * 60, logger=logger)  # 5 min
+async def update_current_validation_cycle() -> None:
+    async with httpx.AsyncClient() as client:
+        r = await client.get('https://elections.toncenter.com/getValidationCycles?return_participants=true&offset=0&limit=3', timeout=5)
+    data = r.json()
+    timestamp_now = datetime.utcnow().timestamp()
+    cur_cycle = None
+    for val_cycle in data:
+        if timestamp_now >= val_cycle['cycle_info']['utime_since'] and timestamp_now <= val_cycle['cycle_info']['utime_until']:
+            cur_cycle = val_cycle
+            break
+    if cur_cycle is None:
+        raise Exception("no current cycle")
+    validators_map = {}
+    for val in cur_cycle['cycle_info']['validators']:
+        validators_map[val['adnl_addr']] = val
+
+    global current_validators_map
+    current_validators_map = validators_map
 
 @app.post('/report_status')
 def report_status(request: Request, data: dict=Body(...)):
@@ -49,8 +76,9 @@ def report_status(request: Request, data: dict=Body(...)):
 
     ip = request.headers['x-real-ip']
 
+    logger.info(current_validators_map.get(adnl))
     if _validate_client(adnl, ip):
-        _report_status(adnl, ip, data)
+        _report_status(adnl, ip, data, current_validators_map.get(adnl))
     else:
         raise HTTPException(status_code=403)
 

@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from hashlib import sha256
+from copy import deepcopy
+import requests
+import json
 
 import inject
 from pymongo import MongoClient, DESCENDING
@@ -39,6 +42,8 @@ def inject_config(binder):
             expireAfterSeconds=86400 * 90 # 90 days
         )
         client[db_name].telemetry_data.create_index([('data.adnl_address', 1), ('timestamp', 1)])
+        client[db_name].telemetry_data.create_index([('timestamp', 1)])
+        client[db_name].telemetry_data.create_index([('data.remote_ip_hash', 1), ('timestamp', 1)])
         client[db_name].create_collection(
             'overlays_data', 
             timeseries={ 
@@ -88,7 +93,7 @@ def _validate_client(adnl: str, ip: str, client: MongoClient):
     return True
 
 @inject.autoparams()
-def _report_status(adnl: str, ip: str, data: dict, client: MongoClient):
+def _report_status(adnl: str, ip: str, data: dict, validator_info: Optional[dict], client: MongoClient):
     ip_hash = sha256((ip + hash_salt).encode('utf-8')).hexdigest()
     try:
         response = city_reader.city(ip)
@@ -116,8 +121,16 @@ def _report_status(adnl: str, ip: str, data: dict, client: MongoClient):
             'data': data
         }
     }
+    record_for_logstash = deepcopy(record)
+
     db = settings.mongodb.database
     client[db].telemetry_data.insert_one(record)
+
+    # send to logstash
+    record_for_logstash['data']['validator_info'] = validator_info
+    record_for_logstash['timestamp'] = record_for_logstash['timestamp'].isoformat() + 'Z'
+    url = 'http://tc-log:5045'
+    requests.post(url, data=json.dumps(record_for_logstash), headers={'Content-Type': 'application/json'}, timeout=0.5)
 
 @inject.autoparams()
 def _report_overlays(adnl: str, ip: str, overlays_stats: dict, client: MongoClient):

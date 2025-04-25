@@ -17,7 +17,7 @@ fi
 FETCH_URL="https://download.maxmind.com/app/geoip_download?edition_id=$EDITION&license_key=$LICENSE_KEY&suffix=tar.gz"
 WORK_ROOT="/tmp"
 
-CURL_BIN="/usr/bin/curl"
+WGET_BIN="/usr/bin/wget"
 TAR_BIN="/usr/bin/tar"
 FIND_BIN="/usr/bin/find"
 
@@ -46,7 +46,7 @@ $MKDIR_BIN $WORK_PATH >/dev/null 2>&1
 check_errs $? "Failed to create work directory $WORK_PATH"
 
 echo "Fetching $EDITION archive"
-$CURL_BIN -s -o "$WORK_PATH/download.tar.gz" $FETCH_URL
+$WGET_BIN -O "$WORK_PATH/download.tar.gz" "$FETCH_URL"
 check_errs $? "Failed to fetch archive"
 
 echo "Unpacking archive"
